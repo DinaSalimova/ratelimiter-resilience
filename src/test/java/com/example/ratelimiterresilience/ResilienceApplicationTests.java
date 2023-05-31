@@ -8,6 +8,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import java.util.Map;
@@ -18,6 +19,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.ok;
 import static com.github.tomakehurst.wiremock.client.WireMock.serverError;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.http.HttpStatus.OK;
@@ -69,5 +71,14 @@ class ResilienceApplicationTests {
         ResponseEntity<String> response2 = restTemplate.getForEntity("/api/retry", String.class);
         assertEquals(response2.getBody(), "all retries have exhausted");
         wireMockServer.verify(3, getRequestedFor(urlEqualTo("/api/external"))); // as we have max-attempts=3
+    }
+
+    @Test
+    public void testTimeLimiter() {
+        wireMockServer.stubFor(WireMock.get("/api/external").willReturn(ok()));
+        ResponseEntity<String> response = restTemplate.getForEntity("/api/time-limiter", String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.REQUEST_TIMEOUT);
+        wireMockServer.verify(1, getRequestedFor(urlEqualTo("/api/external")));
     }
 }
