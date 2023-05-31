@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class RatelimiterResilienceApplication {
+public class ResilienceApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(RatelimiterResilienceApplication.class, args);
+		SpringApplication.run(ResilienceApplication.class, args);
 	}
 
 }

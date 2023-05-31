@@ -16,6 +16,7 @@ import java.util.stream.IntStream;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.ok;
+import static com.github.tomakehurst.wiremock.client.WireMock.serverError;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -23,7 +24,7 @@ import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class RatelimiterResilienceApplicationTests {
+class ResilienceApplicationTests {
 
     @RegisterExtension
     static WireMockExtension wireMockServer = WireMockExtension.newInstance()
@@ -52,5 +53,21 @@ class RatelimiterResilienceApplicationTests {
         assertTrue(responseStatusCount.containsKey(TOO_MANY_REQUESTS.value()));
         assertTrue(responseStatusCount.containsKey(OK.value()));
         wireMockServer.verify(5, getRequestedFor(urlEqualTo("/api/external")));
+    }
+
+    @Test
+    public void testRetry() {
+        wireMockServer.stubFor(WireMock.get("/api/external")
+                .willReturn(ok()));
+        ResponseEntity<String> response1 = restTemplate.getForEntity("/api/retry", String.class);
+        wireMockServer.verify(1, getRequestedFor(urlEqualTo("/api/external")));
+
+        wireMockServer.resetRequests();
+
+        wireMockServer.stubFor(WireMock.get("/api/external")
+                .willReturn(serverError()));
+        ResponseEntity<String> response2 = restTemplate.getForEntity("/api/retry", String.class);
+        assertEquals(response2.getBody(), "all retries have exhausted");
+        wireMockServer.verify(3, getRequestedFor(urlEqualTo("/api/external"))); // as we have max-attempts=3
     }
 }
